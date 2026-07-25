@@ -1,0 +1,283 @@
+import { getData, saveData } from '@/plugins/storage'
+import { readMetadata } from '@/utils/localMediaMetadata'
+import { readDir, stat, extname, externalStorageDirectoryPath } from '@/utils/fs'
+import { storageDataPrefix } from '@/config/constant'
+import { toast } from '@/utils/tools'
+
+const CONFIG_KEY = storageDataPrefix.setting + '_local_music'
+
+const AUDIO_EXTENSIONS = new Set([
+  '.mp3',
+  '.flac',
+  '.wav',
+  '.m4a',
+  '.aac',
+  '.ogg',
+  '.oga',
+  '.opus',
+  '.wma',
+  '.ape',
+])
+
+const isAudioFile = (name: string): boolean => {
+  const ext = extname(name).toLowerCase()
+  return AUDIO_EXTENSIONS.has(ext)
+}
+
+const parseFileName = (fileName: string): { name: string; singer: string } => {
+  const dotIndex = fileName.lastIndexOf('.')
+  const rawName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName
+  if (!rawName.includes('-')) return { name: rawName.trim(), singer: '' }
+  const [left, ...rest] = rawName.split('-')
+  return {
+    name: rest.join('-').trim(),
+    singer: left.trim(),
+  }
+}
+
+const buildId = (filePath: string): string => {
+  return `local__${filePath}`
+}
+
+const getDefaultConfig = (): LX.LocalMusic.Config => ({
+  folders: [],
+  songs: [],
+  scannedAt: 0,
+  sortType: 'fileName',
+  sortOrder: 'asc',
+})
+
+export const getConfig = async (): Promise<LX.LocalMusic.Config> => {
+  try {
+    const config = await getData<LX.LocalMusic.Config>(CONFIG_KEY)
+    if (config) return config
+  } catch {}
+  return getDefaultConfig()
+}
+
+export const saveConfig = async (config: LX.LocalMusic.Config): Promise<void> => {
+  await saveData(CONFIG_KEY, config)
+}
+
+const scanDirectory = async (
+  dirPath: string,
+  onProgress?: (count: number) => void,
+  shouldStop?: () => boolean
+): Promise<LX.Music.MusicInfoLocal[]> => {
+  const results: LX.Music.MusicInfoLocal[] = []
+  const stack: string[] = [dirPath]
+
+  while (stack.length > 0) {
+    if (shouldStop?.()) return results
+
+    const currentPath = stack.pop()!
+    let files: Array<{ name: string; path: string; type: string; size?: number }>
+
+    try {
+      const entries = await readDir(currentPath)
+      files = entries.map(e => ({
+        name: e.name ?? '',
+        path: e.path ?? `${currentPath}/${e.name}`,
+        type: e.type,
+        size: typeof e.size === 'number' ? e.size : undefined,
+      }))
+    } catch {
+      continue
+    }
+
+    for (const file of files) {
+      if (shouldStop?.()) return results
+
+      if (file.type === 'directory') {
+        stack.push(file.path)
+      } else if (isAudioFile(file.name)) {
+        try {
+          const metadata = await readMetadata(file.path).catch(() => null)
+          const { name: parsedName, singer: parsedSinger } = parseFileName(file.name)
+          const name = metadata?.name || parsedName
+          const singer = metadata?.artist || parsedSinger
+          const albumName = metadata?.album || ''
+
+          const musicInfo: LX.Music.MusicInfoLocal = {
+            id: buildId(file.path),
+            name,
+            singer,
+            source: 'local',
+            interval: metadata?.duration ? formatDuration(metadata.duration) : null,
+            meta: {
+              songId: file.path,
+              albumName,
+              filePath: file.path,
+              ext: extname(file.name).toLowerCase().slice(1),
+            },
+          }
+          results.push(musicInfo)
+          if (onProgress) onProgress(results.length)
+        } catch {
+          // skip unreadable files
+        }
+      }
+    }
+  }
+
+  return results
+}
+
+const formatDuration = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+export const addFolder = async (folderPath: string): Promise<LX.LocalMusic.Config> => {
+  const config = await getConfig()
+  if (config.folders.some(f => f.path === folderPath)) {
+    toast(global.i18n.t('open_storage_path_tip'))
+    return config
+  }
+
+  const folderName = folderPath.split(/\/|\\/).filter(Boolean).pop() || folderPath
+  const newFolder: LX.LocalMusic.FolderInfo = {
+    id: `folder_${Date.now()}`,
+    name: folderName,
+    path: folderPath,
+    addedAt: Date.now(),
+  }
+
+  config.folders.push(newFolder)
+  await saveConfig(config)
+  return config
+}
+
+export const removeFolder = async (folderId: string): Promise<LX.LocalMusic.Config> => {
+  const config = await getConfig()
+  const folder = config.folders.find(f => f.id === folderId)
+  if (!folder) return config
+
+  config.folders = config.folders.filter(f => f.id !== folderId)
+  config.songs = config.songs.filter(s => !s.meta.filePath.startsWith(folder.path))
+  config.scannedAt = Date.now()
+  await saveConfig(config)
+  return config
+}
+
+export const scanAllFolders = async (
+  onProgress?: (count: number) => void
+): Promise<LX.LocalMusic.Config> => {
+  const config = await getConfig()
+  const allSongs: LX.Music.MusicInfoLocal[] = []
+  const seenPaths = new Set<string>()
+
+  for (const folder of config.folders) {
+    const songs = await scanDirectory(folder.path, (count) => {
+      if (onProgress) onProgress(allSongs.length + count)
+    })
+    for (const song of songs) {
+      if (!seenPaths.has(song.meta.filePath)) {
+        seenPaths.add(song.meta.filePath)
+        allSongs.push(song)
+      }
+    }
+  }
+
+  config.songs = allSongs
+  config.scannedAt = Date.now()
+  sortSongs(config)
+  await saveConfig(config)
+  return config
+}
+
+export const fullDeviceScan = async (
+  onProgress?: (count: number) => void
+): Promise<LX.LocalMusic.Config> => {
+  const config = await getConfig()
+  const songs = await scanDirectory(externalStorageDirectoryPath, onProgress)
+  const existingPaths = new Set(config.songs.map(s => s.meta.filePath))
+  const newSongs = songs.filter(s => !existingPaths.has(s.meta.filePath))
+  config.songs = [...config.songs, ...newSongs]
+  config.scannedAt = Date.now()
+  sortSongs(config)
+  await saveConfig(config)
+  return config
+}
+
+export const refreshList = async (
+  onProgress?: (count: number) => void
+): Promise<LX.LocalMusic.Config> => {
+  return scanAllFolders(onProgress)
+}
+
+export const clearList = async (): Promise<LX.LocalMusic.Config> => {
+  const config = await getConfig()
+  config.songs = []
+  config.scannedAt = 0
+  await saveConfig(config)
+  return config
+}
+
+const sortSongs = (config: LX.LocalMusic.Config): void => {
+  const { sortType, sortOrder } = config
+  config.songs.sort((a, b) => {
+    let comparison = 0
+    switch (sortType) {
+      case 'name':
+        comparison = a.name.localeCompare(b.name, 'zh-CN')
+        break
+      case 'singer':
+        comparison = a.singer.localeCompare(b.singer, 'zh-CN')
+        break
+      case 'interval': {
+        const aSec = parseInterval(a.interval)
+        const bSec = parseInterval(b.interval)
+        comparison = aSec - bSec
+        break
+      }
+      case 'fileName':
+      default: {
+        const aName = a.meta.filePath.split(/\/|\\/).pop() || ''
+        const bName = b.meta.filePath.split(/\/|\\/).pop() || ''
+        comparison = aName.localeCompare(bName, 'zh-CN')
+        break
+      }
+    }
+    return sortOrder === 'desc' ? -comparison : comparison
+  })
+}
+
+const parseInterval = (interval: string | null): number => {
+  if (!interval) return 0
+  const parts = interval.split(':')
+  if (parts.length === 2) {
+    return parseInt(parts[0]) * 60 + parseInt(parts[1])
+  }
+  return 0
+}
+
+export const setSort = (
+  sortType: LX.LocalMusic.Config['sortType'],
+  sortOrder: LX.LocalMusic.Config['sortOrder']
+): Promise<LX.LocalMusic.Config> => {
+  return getConfig().then(config => {
+    config.sortType = sortType
+    config.sortOrder = sortOrder
+    sortSongs(config)
+    return saveConfig(config).then(() => config)
+  })
+}
+
+export const getTotalSize = (songs: LX.Music.MusicInfoLocal[]): Promise<number> => {
+  return Promise.all(
+    songs.map(song =>
+      stat(song.meta.filePath)
+        .then(s => s.size ?? 0)
+        .catch(() => 0)
+    )
+  ).then(sizes => sizes.reduce((sum, size) => sum + size, 0))
+}
+
+export const formatSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}

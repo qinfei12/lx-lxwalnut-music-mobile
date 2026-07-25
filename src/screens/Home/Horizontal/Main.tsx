@@ -12,6 +12,7 @@ import FollowedArtists from "@/screens/Home/Views/FollowedArtists"
 import PlayHistory from '../Views/PlayHistory'
 import OneDrive from '../Views/OneDrive'
 import WebDAV from '../Views/WebDAV'
+import Local from '../Views/Local'
 
 const Main = () => {
   const [id, setId] = useState(commonState.navActiveId)
@@ -52,6 +53,8 @@ const Main = () => {
         return <Mylist />
       case 'nav_setting':
         return <Setting />
+      case 'nav_local':
+        return <Local />
       case 'nav_search':
       default:
         return <Search />
