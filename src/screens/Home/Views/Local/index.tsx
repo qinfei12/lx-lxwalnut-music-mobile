@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   View,
   type ListRenderItem,
+  Modal as RNModal,
+  TouchableWithoutFeedback,
 } from 'react-native'
 import Text from '@/components/common/Text'
 import Button from '@/components/common/Button'
@@ -33,8 +35,7 @@ import {
   formatSize,
 } from '@/core/localMusic'
 import { readMetadata, readPic } from '@/utils/localMediaMetadata'
-import { selectManagedFolder } from '@/utils/fs'
-import DorpDownMenu from '@/components/common/DorpDownMenu'
+import { selectManagedFolder, externalStorageDirectoryPath } from '@/utils/fs'
 import { useSettingValue } from '@/store/setting/hook'
 
 const ITEM_HEIGHT = scaleSizeH(LIST_ITEM_HEIGHT)
@@ -145,6 +146,16 @@ export default memo(() => {
   const [scanText, setScanText] = useState('')
   const isShowCover = useSettingValue('list.isShowCover')
   const listRef = useRef<FlatList<LX.Music.MusicInfoLocal>>(null)
+
+  const handleFolderManagerPress = useCallback((id: string) => {
+    if (id === '__add__') {
+      setShowFolderManager(false)
+      handleAddFolder()
+    } else {
+      handleRemoveFolder(id)
+      setShowFolderManager(false)
+    }
+  }, [handleAddFolder, handleRemoveFolder])
 
   const loadConfig = useCallback(() => {
     void getConfig().then(config => {
@@ -503,42 +514,102 @@ export default memo(() => {
       ) : null}
 
       {showSortMenu ? (
-        <DorpDownMenu
-          title={t('sort_title')}
-          menus={sortMenus.map(m => ({ ...m, check: sortType === m.id }))}
-          onPress={(id) => handleChangeSort(id as SortType)}
-          onClose={() => setShowSortMenu(false)}
-        />
+        <RNModal
+          animationType="fade"
+          transparent={true}
+          visible={showSortMenu}
+          onRequestClose={() => setShowSortMenu(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowSortMenu(false)}>
+            <View style={styles.modalContainer}>
+              <View style={[styles.modalContent, { backgroundColor: theme['c-content-background'] }]}>
+                <Text style={styles.modalTitle} size={16} color={theme['c-font']}>{t('sort_title')}</Text>
+                {sortMenus.map(m => (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={styles.menuItem}
+                    onPress={() => handleChangeSort(m.id)}
+                  >
+                    <Text size={14} color={sortType === m.id ? theme['c-primary-font'] : theme['c-font']}>
+                      {m.name}
+                    </Text>
+                    {sortType === m.id && (
+                      <Icon name="check" size={14} color={theme['c-primary-font']} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </RNModal>
       ) : null}
 
       {showActionMenu && selectedMusic ? (
-        <DorpDownMenu
-          title={selectedMusic.musicInfo.name}
-          menus={actionMenus}
-          onPress={handleActionPress}
-          onClose={() => setShowActionMenu(false)}
-          position={selectedMusic.position}
-        />
+        <RNModal
+          animationType="fade"
+          transparent={true}
+          visible={showActionMenu}
+          onRequestClose={() => setShowActionMenu(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowActionMenu(false)}>
+            <View style={styles.modalContainer}>
+              <View style={[styles.modalContent, { backgroundColor: theme['c-content-background'] }]}>
+                <Text style={styles.modalTitle} size={16} color={theme['c-font']}>
+                  {selectedMusic.musicInfo.name || selectedMusic.musicInfo.meta.filePath.split(/\/|\\/).pop()}
+                </Text>
+                {actionMenus.map(m => (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={styles.menuItem}
+                    onPress={() => handleActionPress(m.id)}
+                  >
+                    <Text size={14} color={theme['c-font']}>{m.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </RNModal>
       ) : null}
 
       {showFolderManager ? (
-        <DorpDownMenu
-          title={t('folder_manager')}
-          menus={[
-            ...folders.map(f => ({ id: f.id, name: f.name })),
-            { id: '__add__', name: `+ ${t('add_folder')}` },
-          ]}
-          onPress={(id) => {
-            if (id === '__add__') {
-              setShowFolderManager(false)
-              handleAddFolder()
-            } else {
-              handleRemoveFolder(id as string)
-              setShowFolderManager(false)
-            }
-          }}
-          onClose={() => setShowFolderManager(false)}
-        />
+        <RNModal
+          animationType="fade"
+          transparent={true}
+          visible={showFolderManager}
+          onRequestClose={() => setShowFolderManager(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowFolderManager(false)}>
+            <View style={styles.modalContainer}>
+              <View style={[styles.modalContent, { backgroundColor: theme['c-content-background'] }]}>
+                <Text style={styles.modalTitle} size={16} color={theme['c-font']}>{t('folder_manager')}</Text>
+                {folders.length === 0 ? (
+                  <Text style={styles.emptyMenuItem} size={14} color={theme['c-font-label']}>
+                    {t('no_folder_tip')}
+                  </Text>
+                ) : (
+                  folders.map(f => (
+                    <TouchableOpacity
+                      key={f.id}
+                      style={styles.menuItem}
+                      onPress={() => handleFolderManagerPress(f.id)}
+                    >
+                      <Text size={14} color={theme['c-font']}>{f.name}</Text>
+                      <Icon name="trash-2" size={14} color={theme['c-font-label']} />
+                    </TouchableOpacity>
+                  ))
+                )}
+                <TouchableOpacity
+                  key="__add__"
+                  style={styles.menuItem}
+                  onPress={() => handleFolderManagerPress('__add__')}
+                >
+                  <Text size={14} color={theme['c-primary-font']}>+ {t('add_folder')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </RNModal>
       ) : null}
     </View>
   )
@@ -650,5 +721,34 @@ const styles = createStyle({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '80%',
+    maxWidth: 300,
+    borderRadius: 12,
+    padding: 16,
+  },
+  modalTitle: {
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  emptyMenuItem: {
+    paddingVertical: 20,
+    textAlign: 'center',
   },
 })

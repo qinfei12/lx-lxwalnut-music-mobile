@@ -1,6 +1,6 @@
 import { getData, saveData } from '@/plugins/storage'
 import { readMetadata } from '@/utils/localMediaMetadata'
-import { readDir, stat, extname, externalStorageDirectoryPath } from '@/utils/fs'
+import { readDir, stat, extname, externalStorageDirectoryPath, getExternalStoragePaths } from '@/utils/fs'
 import { storageDataPrefix } from '@/config/constant'
 import { toast } from '@/utils/tools'
 
@@ -193,9 +193,30 @@ export const fullDeviceScan = async (
   onProgress?: (count: number) => void
 ): Promise<LX.LocalMusic.Config> => {
   const config = await getConfig()
-  const songs = await scanDirectory(externalStorageDirectoryPath, onProgress)
+  const allSongs: LX.Music.MusicInfoLocal[] = []
+  const seenPaths = new Set<string>()
+
+  const storagePaths = await getExternalStoragePaths(false)
+  const validPaths = storagePaths.filter(p => p && p.length > 0)
+
+  if (validPaths.length === 0 && externalStorageDirectoryPath) {
+    validPaths.push(externalStorageDirectoryPath)
+  }
+
+  for (const storagePath of validPaths) {
+    const songs = await scanDirectory(storagePath, (count) => {
+      if (onProgress) onProgress(allSongs.length + count)
+    })
+    for (const song of songs) {
+      if (!seenPaths.has(song.meta.filePath)) {
+        seenPaths.add(song.meta.filePath)
+        allSongs.push(song)
+      }
+    }
+  }
+
   const existingPaths = new Set(config.songs.map(s => s.meta.filePath))
-  const newSongs = songs.filter(s => !existingPaths.has(s.meta.filePath))
+  const newSongs = allSongs.filter(s => !existingPaths.has(s.meta.filePath))
   config.songs = [...config.songs, ...newSongs]
   config.scannedAt = Date.now()
   sortSongs(config)
