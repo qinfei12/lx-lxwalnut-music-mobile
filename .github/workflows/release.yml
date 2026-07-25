@@ -113,9 +113,13 @@ jobs:
             echo -e '\n### Test Build\nThis prerelease was generated because release `${{ needs.Android.outputs.package_version }}` already exists.\n' >> RELEASE_NOTES.md
           fi
           echo -e '\n### File MD5\n```' >> RELEASE_NOTES.md
-          cd artifacts
-          md5sum *.apk >> ../RELEASE_NOTES.md
-          cd ..
+          if [ -d artifacts ] && ls artifacts/*.apk >/dev/null 2>&1; then
+            cd artifacts
+            md5sum *.apk >> ../RELEASE_NOTES.md
+            cd ..
+          else
+            echo 'No APK files found.' >> ../RELEASE_NOTES.md
+          fi
           echo -e '```\n' >> RELEASE_NOTES.md
           echo -e '\n[软件安装包说明](https://lyswhut.github.io/lx-music-doc/download#%E8%BD%AF%E4%BB%B6%E5%AE%89%E8%A3%85%E5%8C%85%E8%AF%B4%E6%98%8E)\n' >> RELEASE_NOTES.md
 
@@ -128,10 +132,10 @@ jobs:
           draft: false
           tag_name: ${{ needs.Android.outputs.release_tag }}
           files: |
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-arm64-v8a.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-armeabi-v7a.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-x86_64.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-x86.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-universal.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-arm64-v8a.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-armeabi-v7a.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-x86_64.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-x86.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-universal.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
