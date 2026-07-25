@@ -41,21 +41,41 @@ const buildId = (filePath: string): string => {
 }
 
 const safToRealPath = (safEncodedPath: string): string => {
+  if (!safEncodedPath) return ''
+  if (safEncodedPath.startsWith('/storage/')) return safEncodedPath
+
+  let decoded = safEncodedPath
   try {
-    let decoded = decodeURIComponent(safEncodedPath)
-    decoded = decoded.replace(/^content:\/\/com\.android\.externalstorage\.documents\/tree\//, '')
-    decoded = decoded.replace(/^primary:/, '/storage/emulated/0/')
-    decoded = decoded.replace(/^(\d+)-(\w+):/, '/storage/')
-    if (decoded.startsWith('primary/')) {
-      decoded = '/storage/emulated/0/' + decoded.substring(8)
-    }
-    return decoded
-  } catch {
-    let path = safEncodedPath.replace(/%3A/gi, ':')
-    path = path.replace(/^content:\/\/com\.android\.externalstorage\.documents\/tree\//, '')
-    path = path.replace(/^primary:/, '/storage/emulated/0/')
-    return path
+    decoded = decodeURIComponent(safEncodedPath)
+  } catch {}
+
+  const primaryIndex = decoded.lastIndexOf('primary:')
+  if (primaryIndex >= 0) {
+    const relativePath = decoded.substring(primaryIndex + 8)
+    return `/storage/emulated/0/${relativePath}`
   }
+
+  const treeMatch = decoded.match(/tree\/([^:]+):(.+)/)
+  if (treeMatch) {
+    const volume = treeMatch[1]
+    const relativePath = treeMatch[2]
+    if (volume === 'primary') {
+      return `/storage/emulated/0/${relativePath}`
+    }
+    return `/storage/${volume}/${relativePath}`
+  }
+
+  const documentMatch = decoded.match(/document\/([^:]+):(.+)/)
+  if (documentMatch) {
+    const volume = documentMatch[1]
+    const relativePath = documentMatch[2]
+    if (volume === 'primary') {
+      return `/storage/emulated/0/${relativePath}`
+    }
+    return `/storage/${volume}/${relativePath}`
+  }
+
+  return decoded
 }
 
 const getDefaultConfig = (): LX.LocalMusic.Config => ({
@@ -105,11 +125,14 @@ const scanDirectory = async (
     for (const entry of entries) {
       if (shouldStop?.()) return results
 
-      const entryPath = entry.path ?? `${currentPath}/${entry.name ?? ''}`
+      const rawEntryPath = entry.path ?? `${currentPath}/${entry.name ?? ''}`
+      const entryPath = safToRealPath(rawEntryPath)
       const entryName = entry.name ?? ''
 
       if (entry.type === 'directory') {
-        stack.push(entryPath)
+        if (!visited.has(entryPath)) {
+          stack.push(entryPath)
+        }
       } else if (isAudioFile(entry)) {
         try {
           const metadata = await readMetadata(entryPath).catch(() => null)
@@ -214,18 +237,24 @@ export const fullDeviceScan = async (
   const allSongs: LX.Music.MusicInfoLocal[] = []
   const seenPaths = new Set<string>()
 
-  const storagePaths = await getExternalStoragePaths(false)
-  const validPaths = storagePaths.filter(p => p && p.length > 0).map(p => safToRealPath(p))
+  let scanPaths: string[] = []
 
-  if (validPaths.length === 0 && externalStorageDirectoryPath) {
-    validPaths.push(externalStorageDirectoryPath)
+  try {
+    const storagePaths = await getExternalStoragePaths(false)
+    scanPaths = storagePaths.filter(p => p && p.length > 0).map(p => safToRealPath(p))
+  } catch {}
+
+  if (scanPaths.length === 0 && externalStorageDirectoryPath) {
+    scanPaths.push(externalStorageDirectoryPath)
   }
 
-  if (validPaths.length === 0) {
-    validPaths.push('/storage/emulated/0')
+  if (scanPaths.length === 0 || scanPaths.every(p => !p.startsWith('/storage/'))) {
+    scanPaths = ['/storage/emulated/0']
   }
 
-  for (const storagePath of validPaths) {
+  const uniquePaths = [...new Set(scanPaths.filter(p => p && p.startsWith('/storage/')))]
+
+  for (const storagePath of uniquePaths) {
     try {
       const songs = await scanDirectory(storagePath, (count) => {
         if (onProgress) onProgress(allSongs.length + count)
