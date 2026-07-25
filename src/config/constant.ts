@@ -113,6 +113,7 @@ export const NAV_MENUS = [
   { id: 'nav_songlist', icon: 'album' },
   { id: 'nav_top', icon: 'leaderboard' },
   { id: 'nav_love', icon: 'love' },
+  { id: 'nav_local', icon: 'svg:folder' },
   { id: 'nav_daily_rec', icon: 'svg:calendar' },
   { id: 'nav_followed_artists', icon: 'svg:artist' },
   { id: 'nav_subscribed_albums', icon: 'svg:album-disc' },

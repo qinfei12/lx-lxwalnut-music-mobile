@@ -1,5 +1,6 @@
 import Content from './Content'
 import PlayerBar from '@/components/player/PlayerBar'
+import BottomTabBar from '../components/BottomTabBar'
 import commonState from '@/store/common/state'
 
 export default ({ componentId }: { componentId: string }) => {
@@ -7,6 +8,7 @@ export default ({ componentId }: { componentId: string }) => {
     <>
       <Content />
       <PlayerBar componentId={componentId} componentId={commonState.componentIds[commonState.componentIds.length - 1]?.id!} isHome />
+      <BottomTabBar />
     </>
   )
 }

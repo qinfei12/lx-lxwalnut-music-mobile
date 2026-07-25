@@ -5,6 +5,7 @@ import StatusBar from '@/components/common/StatusBar'
 import Header from './Header'
 import commonState from '@/store/common/state'
 import Main from './Main'
+import BottomTabBar from '../components/BottomTabBar'
 import { createStyle } from '@/utils/tools'
 
 const styles = createStyle({
@@ -28,6 +29,7 @@ export default ({ componentId }: { componentId: string }) => {
           <Header />
           <Main />
           <PlayerBar componentId={componentId} isHome />
+          <BottomTabBar />
         </View>
       </View>
     </>
