@@ -40,6 +40,13 @@ const buildId = (filePath: string): string => {
   return `local__${filePath}`
 }
 
+const safToRealPath = (safEncodedPath: string): string => {
+   // 1. URL解码，还原 : / 特殊符号
+   const decodePath = decodeURIComponent(safEncodedPath)
+   // 2. 把 primary: 前缀替换成安卓内部存储绝对路径
+   return decodePath.replace(/^primary:/, '/storage/emulated/0/')
+}
+
 const getDefaultConfig = (): LX.LocalMusic.Config => ({
   folders: [],
   songs: [],
@@ -138,8 +145,9 @@ export const addFolder = async (folderPath: string): Promise<LX.LocalMusic.Confi
     return config
   }
 
-  const folderName = folderPath.split(/\/|\\/).filter(Boolean).pop() || folderPath
-  const newFolder: LX.LocalMusic.FolderInfo = {
+  // 转换为安卓真实绝对路径，用于弹窗UI展示
+const folderName = safToRealPath(folderPath)
+const newFolder: LX.LocalMusic.FolderInfo = {
     id: `folder_${Date.now()}`,
     name: folderName,
     path: folderPath,
