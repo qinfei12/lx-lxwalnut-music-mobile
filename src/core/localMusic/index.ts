@@ -7,20 +7,21 @@ import { toast } from '@/utils/tools'
 const CONFIG_KEY = storageDataPrefix.setting + '_local_music'
 
 const AUDIO_EXTENSIONS = new Set([
-  '.mp3',
-  '.flac',
-  '.wav',
-  '.m4a',
-  '.aac',
-  '.ogg',
-  '.oga',
-  '.opus',
-  '.wma',
-  '.ape',
+  'mp3',
+  'flac',
+  'wav',
+  'm4a',
+  'aac',
+  'ogg',
+  'oga',
+  'opus',
+  'wma',
+  'ape',
 ])
 
-const isAudioFile = (name: string): boolean => {
-  const ext = extname(name).toLowerCase()
+const isAudioFile = (file: { name?: string; mimeType?: string }): boolean => {
+  if (file.mimeType?.startsWith('audio/')) return true
+  const ext = extname(file.name ?? '').toLowerCase()
   return AUDIO_EXTENSIONS.has(ext)
 }
 
@@ -66,49 +67,50 @@ const scanDirectory = async (
 ): Promise<LX.Music.MusicInfoLocal[]> => {
   const results: LX.Music.MusicInfoLocal[] = []
   const stack: string[] = [dirPath]
+  const visited = new Set<string>()
 
   while (stack.length > 0) {
     if (shouldStop?.()) return results
 
     const currentPath = stack.pop()!
-    let files: Array<{ name: string; path: string; type: string; size?: number }>
+    if (visited.has(currentPath)) continue
+    visited.add(currentPath)
+
+    let entries: Array<{ name?: string; path?: string; type?: string; size?: number; mimeType?: string }>
 
     try {
-      const entries = await readDir(currentPath)
-      files = entries.map(e => ({
-        name: e.name ?? '',
-        path: e.path ?? `${currentPath}/${e.name}`,
-        type: e.type,
-        size: typeof e.size === 'number' ? e.size : undefined,
-      }))
+      entries = await readDir(currentPath)
     } catch {
       continue
     }
 
-    for (const file of files) {
+    for (const entry of entries) {
       if (shouldStop?.()) return results
 
-      if (file.type === 'directory') {
-        stack.push(file.path)
-      } else if (isAudioFile(file.name)) {
+      const entryPath = entry.path ?? `${currentPath}/${entry.name ?? ''}`
+      const entryName = entry.name ?? ''
+
+      if (entry.type === 'directory') {
+        stack.push(entryPath)
+      } else if (isAudioFile(entry)) {
         try {
-          const metadata = await readMetadata(file.path).catch(() => null)
-          const { name: parsedName, singer: parsedSinger } = parseFileName(file.name)
+          const metadata = await readMetadata(entryPath).catch(() => null)
+          const { name: parsedName, singer: parsedSinger } = parseFileName(entryName)
           const name = metadata?.name || parsedName
           const singer = metadata?.artist || parsedSinger
           const albumName = metadata?.album || ''
 
           const musicInfo: LX.Music.MusicInfoLocal = {
-            id: buildId(file.path),
+            id: buildId(entryPath),
             name,
             singer,
             source: 'local',
             interval: metadata?.duration ? formatDuration(metadata.duration) : null,
             meta: {
-              songId: file.path,
+              songId: entryPath,
               albumName,
-              filePath: file.path,
-              ext: extname(file.name).toLowerCase().slice(1),
+              filePath: entryPath,
+              ext: extname(entryName).toLowerCase(),
             },
           }
           results.push(musicInfo)

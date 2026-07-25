@@ -145,6 +145,85 @@ const FolderIcon = ({ size, color }: { size: number; color: string }) => (
   </Svg>
 )
 
+const RefreshIcon = ({ size, color }: { size: number; color: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M20 12a8 8 0 1 1-2.34-5.66"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M20 4v5h-5"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+)
+
+const SortIcon = ({ size, color }: { size: number; color: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M3 6h13M3 12h9M3 18h5"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M17 14v7m0 0l3-3m-3 3l-3-3"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M21 10V3m0 0l-3 3m3-3l3 3"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+)
+
+const FolderPlusIcon = ({ size, color }: { size: number; color: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M12 11v6M9 14h6"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+)
+
+const ListIcon = ({ size, color }: { size: number; color: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M8 6h13M8 12h13M8 18h13"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Circle cx="4" cy="6" r="1" fill={color} />
+    <Circle cx="4" cy="12" r="1" fill={color} />
+    <Circle cx="4" cy="18" r="1" fill={color} />
+  </Svg>
+)
+
 export const SvgIcon = memo(({ name, size = 15, rawSize, color = '#000', style }: SvgIconProps) => {
   const finalSize = rawSize ?? scaleSizeW(size)
 
@@ -168,6 +247,14 @@ export const SvgIcon = memo(({ name, size = 15, rawSize, color = '#000', style }
         return <MusicListIcon size={finalSize} color={color} />
       case 'landscape-immersion':
         return <LandscapeImmersionIcon size={finalSize} color={color} />
+      case 'refresh':
+        return <RefreshIcon size={finalSize} color={color} />
+      case 'sort':
+        return <SortIcon size={finalSize} color={color} />
+      case 'folder-plus':
+        return <FolderPlusIcon size={finalSize} color={color} />
+      case 'list-bullet':
+        return <ListIcon size={finalSize} color={color} />
       default:
         return null
     }

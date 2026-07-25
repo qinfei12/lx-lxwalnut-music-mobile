@@ -227,7 +227,7 @@ export default memo(() => {
       const hasPermission = await requestStoragePermission()
       if (!hasPermission) return
 
-      const result = await selectManagedFolder()
+      const result = await selectManagedFolder(true)
       if (result.isDirectory) {
         setLoading(true)
         setScanText('')
@@ -399,41 +399,41 @@ export default memo(() => {
       </Text>
       <View style={styles.actionRow}>
         <Button
-          style={styles.actionBtn}
+          style={[styles.actionBtn, { backgroundColor: theme['c-button-background'] }]}
           textStyle={styles.actionBtnText}
           onPress={handleAddFolder}
         >
-          <Icon name="add-file" size={14} color={theme['c-primary-font']} />
+          <SvgIcon name="folder-plus" size={14} color={theme['c-primary-font']} />
           <Text size={13} color={theme['c-primary-font']}>{t('add_folder')}</Text>
         </Button>
         <Button
-          style={styles.actionBtn}
+          style={[styles.actionBtn, { backgroundColor: theme['c-button-background'] }]}
           textStyle={styles.actionBtnText}
           onPress={() => setShowFolderManager(true)}
         >
-          <Icon name="list" size={14} color={theme['c-primary-font']} />
+          <Icon name="menu" size={14} color={theme['c-primary-font']} />
           <Text size={13} color={theme['c-primary-font']}>{t('folder_manager')}</Text>
         </Button>
       </View>
       <View style={styles.actionRow}>
         <Button
-          style={styles.actionBtn}
+          style={[styles.actionBtn, { backgroundColor: theme['c-button-background'] }]}
           textStyle={styles.actionBtnText}
           onPress={handleRefresh}
         >
-          <Icon name="refresh" size={14} color={theme['c-primary-font']} />
+          <SvgIcon name="refresh" size={14} color={theme['c-primary-font']} />
           <Text size={13} color={theme['c-primary-font']}>{t('refresh_list')}</Text>
         </Button>
         <Button
-          style={styles.actionBtn}
+          style={[styles.actionBtn, { backgroundColor: theme['c-button-background'] }]}
           textStyle={styles.actionBtnText}
           onPress={() => setShowSortMenu(true)}
         >
-          <Icon name="sort" size={14} color={theme['c-primary-font']} />
+          <SvgIcon name="sort" size={14} color={theme['c-primary-font']} />
           <Text size={13} color={theme['c-primary-font']}>{t('sort')}</Text>
         </Button>
         <Button
-          style={styles.actionBtn}
+          style={[styles.actionBtn, { backgroundColor: theme['c-button-background'] }]}
           textStyle={styles.actionBtnText}
           onPress={handleFullScan}
         >
@@ -443,7 +443,7 @@ export default memo(() => {
       </View>
       <View style={styles.actionRow}>
         <Button
-          style={[styles.actionBtn, styles.clearBtn]}
+          style={[styles.actionBtn, styles.clearBtn, { backgroundColor: theme['c-button-background'] }]}
           textStyle={styles.actionBtnText}
           onPress={handleClearList}
         >
@@ -457,7 +457,7 @@ export default memo(() => {
         </Text>
       </View>
       {scanText ? (
-        <View style={styles.scanProgress}>
+        <View style={[styles.scanProgress, { backgroundColor: theme['c-primary-background-hover'] }]}>
           <Text size={12} color={theme['c-primary-font']}>{scanText}</Text>
         </View>
       ) : null}
@@ -489,11 +489,14 @@ export default memo(() => {
 
       {songs.length === 0 && !loading ? (
         <View style={styles.emptyView}>
-          <Icon name="folder" size={60} color={theme['c-font-label']} />
+          <SvgIcon name="folder" rawSize={60} color={theme['c-font-label']} />
           <Text style={styles.emptyText} color={theme['c-font-label']}>
             {t('no_item')}
           </Text>
-          <Button style={styles.emptyBtn} onPress={handleAddFolder}>
+          <Button
+            style={[styles.emptyBtn, { backgroundColor: theme['c-button-background'] }]}
+            onPress={handleAddFolder}
+          >
             <Text color={theme['c-primary-font']}>{t('add_folder_first')}</Text>
           </Button>
         </View>
@@ -557,24 +560,24 @@ const styles = createStyle({
   actionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   actionBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     marginRight: 10,
-    marginBottom: 6,
-    borderRadius: 8,
+    marginBottom: 8,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
   actionBtnText: {
-    marginLeft: 4,
+    marginLeft: 6,
+    fontWeight: '500',
   },
   clearBtn: {},
   statsRow: {
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 4,
   },
   scanProgress: {
@@ -582,6 +585,7 @@ const styles = createStyle({
     paddingHorizontal: 10,
     borderRadius: 6,
     alignSelf: 'flex-start',
+    marginTop: 4,
   },
   songItem: {
     flexDirection: 'row',
