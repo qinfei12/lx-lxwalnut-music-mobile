@@ -41,10 +41,12 @@ const buildId = (filePath: string): string => {
 }
 
 const safToRealPath = (safEncodedPath: string): string => {
-   // 1. URL解码，还原 : / 特殊符号
-   const decodePath = decodeURIComponent(safEncodedPath)
-   // 2. 把 primary: 前缀替换成安卓内部存储绝对路径
-   return decodePath.replace(/^primary:/, '/storage/emulated/0/')
+  try {
+    const decoded = decodeURIComponent(safEncodedPath)
+    return decoded.replace(/^primary:/, '/storage/emulated/0/')
+  } catch {
+    return safEncodedPath.replace(/%3A/gi, ':').replace(/^primary:/, '/storage/emulated/0/')
+  }
 }
 
 const getDefaultConfig = (): LX.LocalMusic.Config => ({
