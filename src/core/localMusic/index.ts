@@ -42,10 +42,19 @@ const buildId = (filePath: string): string => {
 
 const safToRealPath = (safEncodedPath: string): string => {
   try {
-    const decoded = decodeURIComponent(safEncodedPath)
-    return decoded.replace(/^primary:/, '/storage/emulated/0/')
+    let decoded = decodeURIComponent(safEncodedPath)
+    decoded = decoded.replace(/^content:\/\/com\.android\.externalstorage\.documents\/tree\//, '')
+    decoded = decoded.replace(/^primary:/, '/storage/emulated/0/')
+    decoded = decoded.replace(/^(\d+)-(\w+):/, '/storage/')
+    if (decoded.startsWith('primary/')) {
+      decoded = '/storage/emulated/0/' + decoded.substring(8)
+    }
+    return decoded
   } catch {
-    return safEncodedPath.replace(/%3A/gi, ':').replace(/^primary:/, '/storage/emulated/0/')
+    let path = safEncodedPath.replace(/%3A/gi, ':')
+    path = path.replace(/^content:\/\/com\.android\.externalstorage\.documents\/tree\//, '')
+    path = path.replace(/^primary:/, '/storage/emulated/0/')
+    return path
   }
 }
 
@@ -142,17 +151,16 @@ const formatDuration = (seconds: number): string => {
 
 export const addFolder = async (folderPath: string): Promise<LX.LocalMusic.Config> => {
   const config = await getConfig()
-  if (config.folders.some(f => f.path === folderPath)) {
+  const realPath = safToRealPath(folderPath)
+  if (config.folders.some(f => f.path === realPath)) {
     toast(global.i18n.t('open_storage_path_tip'))
     return config
   }
 
-  // 转换为安卓真实绝对路径，用于弹窗UI展示
-const folderName = safToRealPath(folderPath)
-const newFolder: LX.LocalMusic.FolderInfo = {
+  const newFolder: LX.LocalMusic.FolderInfo = {
     id: `folder_${Date.now()}`,
-    name: folderName,
-    path: folderPath,
+    name: realPath,
+    path: realPath,
     addedAt: Date.now(),
   }
 
@@ -207,27 +215,33 @@ export const fullDeviceScan = async (
   const seenPaths = new Set<string>()
 
   const storagePaths = await getExternalStoragePaths(false)
-  const validPaths = storagePaths.filter(p => p && p.length > 0)
+  const validPaths = storagePaths.filter(p => p && p.length > 0).map(p => safToRealPath(p))
 
   if (validPaths.length === 0 && externalStorageDirectoryPath) {
     validPaths.push(externalStorageDirectoryPath)
   }
 
+  if (validPaths.length === 0) {
+    validPaths.push('/storage/emulated/0')
+  }
+
   for (const storagePath of validPaths) {
-    const songs = await scanDirectory(storagePath, (count) => {
-      if (onProgress) onProgress(allSongs.length + count)
-    })
-    for (const song of songs) {
-      if (!seenPaths.has(song.meta.filePath)) {
-        seenPaths.add(song.meta.filePath)
-        allSongs.push(song)
+    try {
+      const songs = await scanDirectory(storagePath, (count) => {
+        if (onProgress) onProgress(allSongs.length + count)
+      })
+      for (const song of songs) {
+        if (!seenPaths.has(song.meta.filePath)) {
+          seenPaths.add(song.meta.filePath)
+          allSongs.push(song)
+        }
       }
+    } catch {
+      continue
     }
   }
 
-  const existingPaths = new Set(config.songs.map(s => s.meta.filePath))
-  const newSongs = allSongs.filter(s => !existingPaths.has(s.meta.filePath))
-  config.songs = [...config.songs, ...newSongs]
+  config.songs = allSongs
   config.scannedAt = Date.now()
   sortSongs(config)
   await saveConfig(config)

@@ -595,7 +595,7 @@ export default memo(() => {
                       onPress={() => handleFolderManagerPress(f.id)}
                     >
                       <Text size={14} color={theme['c-font']}>{f.name}</Text>
-                      <Icon name="trash-2" size={14} color={theme['c-font-label']} />
+                      <Icon name="remove" size={14} color={theme['c-font-label']} />
                     </TouchableOpacity>
                   ))
                 )}
