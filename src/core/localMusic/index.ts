@@ -237,27 +237,62 @@ export const fullDeviceScan = async (
   const allSongs: LX.Music.MusicInfoLocal[] = []
   const seenPaths = new Set<string>()
 
-  let scanPaths: string[] = []
+  const scanTargetPaths: string[] = []
 
   try {
     const storagePaths = await getExternalStoragePaths(false)
-    scanPaths = storagePaths.filter(p => p && p.length > 0).map(p => safToRealPath(p))
+    for (const p of storagePaths) {
+      const realPath = safToRealPath(p)
+      if (realPath && realPath.startsWith('/storage/')) {
+        scanTargetPaths.push(realPath)
+      }
+    }
   } catch {}
 
-  if (scanPaths.length === 0 && externalStorageDirectoryPath) {
-    scanPaths.push(externalStorageDirectoryPath)
+  if (externalStorageDirectoryPath && externalStorageDirectoryPath.startsWith('/storage/')) {
+    scanTargetPaths.push(externalStorageDirectoryPath)
   }
 
-  if (scanPaths.length === 0 || scanPaths.every(p => !p.startsWith('/storage/'))) {
-    scanPaths = ['/storage/emulated/0']
+  const commonMusicDirs = [
+    'Music',
+    'Download',
+    'Downloads',
+    'DCIM',
+    'Movies',
+    'Audio',
+    'Sounds',
+    'Ringtones',
+    'Notifications',
+    'Alarms',
+    'Podcasts',
+    'KuwoMusic',
+    'KugouMusic',
+    'QQMusic',
+    'NeteaseMusic',
+    'XiamiMusic',
+    'MiguMusic',
+  ]
+
+  const basePaths = new Set<string>()
+  for (const p of scanTargetPaths) {
+    basePaths.add(p)
+    for (const dir of commonMusicDirs) {
+      basePaths.add(`${p}/${dir}`)
+    }
   }
 
-  const uniquePaths = [...new Set(scanPaths.filter(p => p && p.startsWith('/storage/')))]
+  if (basePaths.size === 0) {
+    basePaths.add('/storage/emulated/0/Music')
+    basePaths.add('/storage/emulated/0/Download')
+    basePaths.add('/storage/emulated/0/DCIM')
+  }
 
-  for (const storagePath of uniquePaths) {
+  let totalCount = 0
+
+  for (const basePath of basePaths) {
     try {
-      const songs = await scanDirectory(storagePath, (count) => {
-        if (onProgress) onProgress(allSongs.length + count)
+      const songs = await scanDirectory(basePath, (count) => {
+        if (onProgress) onProgress(totalCount + count)
       })
       for (const song of songs) {
         if (!seenPaths.has(song.meta.filePath)) {
@@ -265,15 +300,21 @@ export const fullDeviceScan = async (
           allSongs.push(song)
         }
       }
+      totalCount = allSongs.length
     } catch {
       continue
     }
   }
 
-  config.songs = allSongs
-  config.scannedAt = Date.now()
-  sortSongs(config)
-  await saveConfig(config)
+  if (allSongs.length > 0) {
+    const existingPaths = new Set(config.songs.map(s => s.meta.filePath))
+    const newSongs = allSongs.filter(s => !existingPaths.has(s.meta.filePath))
+    config.songs = [...config.songs, ...newSongs]
+    config.scannedAt = Date.now()
+    sortSongs(config)
+    await saveConfig(config)
+  }
+
   return config
 }
 
