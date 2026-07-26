@@ -110,7 +110,7 @@ android {
 
     namespace "com.lxnetease.music.mobile"
     defaultConfig {
-        applicationId "com.lxnetease.music.mobile"
+        applicationId "com.lxwalnut.music.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode verCode
