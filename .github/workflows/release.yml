@@ -133,10 +133,10 @@ jobs:
           draft: false
           tag_name: ${{ needs.Android.outputs.release_tag }}
           files: |
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-arm64-v8a.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-armeabi-v7a.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-x86_64.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-x86.apk
-            artifacts/lx-netease-music-mobile-v${{ needs.Android.outputs.package_version }}-universal.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-arm64-v8a.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-armeabi-v7a.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-x86_64.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-x86.apk
+            artifacts/lx-lxwalnut-music-mobile-v${{ needs.Android.outputs.package_version }}-universal.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
