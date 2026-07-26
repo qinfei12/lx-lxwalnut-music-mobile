@@ -12,6 +12,7 @@ import java.util.List;
 import com.lxnetease.music.mobile.cache.CachePackage;
 import com.lxnetease.music.mobile.crypto.CryptoPackage;
 import com.lxnetease.music.mobile.lyric.LyricPackage;
+import com.lxnetease.music.mobile.mediastore.MediaStorePackage;
 import com.lxnetease.music.mobile.userApi.UserApiPackage;
 import com.lxnetease.music.mobile.utils.UtilsPackage;
 import com.lxnetease.music.mobile.widget.WidgetPackage;
@@ -37,6 +38,7 @@ public class MainApplication extends NavigationApplication {
           packages.add(new CryptoPackage());
           packages.add(new UserApiPackage());
           packages.add(new WidgetPackage());
+          packages.add(new MediaStorePackage());
           return packages;
         }
 

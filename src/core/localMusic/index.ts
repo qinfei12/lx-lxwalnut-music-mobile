@@ -1,6 +1,7 @@
 import { getData, saveData } from '@/plugins/storage'
 import { readMetadata } from '@/utils/localMediaMetadata'
 import { readDir, stat, extname, externalStorageDirectoryPath, getExternalStoragePaths } from '@/utils/fs'
+import { getAllAudioFiles } from '@/utils/nativeModules/mediaStore'
 import { storageDataPrefix } from '@/config/constant'
 import { toast } from '@/utils/tools'
 
@@ -208,22 +209,25 @@ export const scanAllFolders = async (
   onProgress?: (count: number) => void
 ): Promise<LX.LocalMusic.Config> => {
   const config = await getConfig()
-  const allSongs: LX.Music.MusicInfoLocal[] = []
+  const folderSongs: LX.Music.MusicInfoLocal[] = []
   const seenPaths = new Set<string>()
 
   for (const folder of config.folders) {
     const songs = await scanDirectory(folder.path, (count) => {
-      if (onProgress) onProgress(allSongs.length + count)
+      if (onProgress) onProgress(folderSongs.length + count)
     })
     for (const song of songs) {
       if (!seenPaths.has(song.meta.filePath)) {
         seenPaths.add(song.meta.filePath)
-        allSongs.push(song)
+        folderSongs.push(song)
       }
     }
   }
 
-  config.songs = allSongs
+  const folderPaths = new Set(folderSongs.map(s => s.meta.filePath))
+  const nonFolderSongs = config.songs.filter(s => !folderPaths.has(s.meta.filePath))
+
+  config.songs = [...folderSongs, ...nonFolderSongs]
   config.scannedAt = Date.now()
   sortSongs(config)
   await saveConfig(config)
@@ -237,79 +241,57 @@ export const fullDeviceScan = async (
   const allSongs: LX.Music.MusicInfoLocal[] = []
   const seenPaths = new Set<string>()
 
-  const scanTargetPaths: string[] = []
-
   try {
-    const storagePaths = await getExternalStoragePaths(false)
-    for (const p of storagePaths) {
-      const realPath = safToRealPath(p)
-      if (realPath && realPath.startsWith('/storage/')) {
-        scanTargetPaths.push(realPath)
+    const audioFiles = await getAllAudioFiles()
+    let processedCount = 0
+
+    for (const audio of audioFiles) {
+      const filePath = audio.filePath || audio.contentUri
+      if (!filePath || seenPaths.has(filePath)) continue
+      seenPaths.add(filePath)
+
+      const entryName = audio.fileName || filePath.split(/\/|\\/).pop() || ''
+      const { name: parsedName, singer: parsedSinger } = parseFileName(entryName)
+
+      const musicInfo: LX.Music.MusicInfoLocal = {
+        id: buildId(filePath),
+        name: audio.title || parsedName,
+        singer: audio.artist || parsedSinger,
+        source: 'local',
+        interval: audio.duration > 0 ? formatDuration(audio.duration) : null,
+        meta: {
+          songId: filePath,
+          albumName: audio.album || '',
+          filePath,
+          ext: extname(entryName).toLowerCase(),
+        },
       }
+      allSongs.push(musicInfo)
+      processedCount++
+      if (onProgress && processedCount % 10 === 0) onProgress(processedCount)
     }
-  } catch {}
 
-  if (externalStorageDirectoryPath && externalStorageDirectoryPath.startsWith('/storage/')) {
-    scanTargetPaths.push(externalStorageDirectoryPath)
-  }
-
-  const commonMusicDirs = [
-    'Music',
-    'Download',
-    'Downloads',
-    'DCIM',
-    'Movies',
-    'Audio',
-    'Sounds',
-    'Ringtones',
-    'Notifications',
-    'Alarms',
-    'Podcasts',
-    'KuwoMusic',
-    'KugouMusic',
-    'QQMusic',
-    'NeteaseMusic',
-    'XiamiMusic',
-    'MiguMusic',
-  ]
-
-  const basePaths = new Set<string>()
-  for (const p of scanTargetPaths) {
-    basePaths.add(p)
-    for (const dir of commonMusicDirs) {
-      basePaths.add(`${p}/${dir}`)
-    }
-  }
-
-  if (basePaths.size === 0) {
-    basePaths.add('/storage/emulated/0/Music')
-    basePaths.add('/storage/emulated/0/Download')
-    basePaths.add('/storage/emulated/0/DCIM')
-  }
-
-  let totalCount = 0
-
-  for (const basePath of basePaths) {
-    try {
-      const songs = await scanDirectory(basePath, (count) => {
-        if (onProgress) onProgress(totalCount + count)
-      })
-      for (const song of songs) {
-        if (!seenPaths.has(song.meta.filePath)) {
-          seenPaths.add(song.meta.filePath)
-          allSongs.push(song)
+    if (onProgress) onProgress(allSongs.length)
+  } catch (err) {
+    console.warn('MediaStore scan failed, falling back to directory scan:', err)
+    const fallbackPaths = ['/storage/emulated/0/Music', '/storage/emulated/0/Download']
+    for (const path of fallbackPaths) {
+      try {
+        const songs = await scanDirectory(path, (count) => {
+          if (onProgress) onProgress(allSongs.length + count)
+        })
+        for (const song of songs) {
+          if (!seenPaths.has(song.meta.filePath)) {
+            seenPaths.add(song.meta.filePath)
+            allSongs.push(song)
+          }
         }
-      }
-      totalCount = allSongs.length
-    } catch {
-      continue
+      } catch {}
     }
   }
 
   if (allSongs.length > 0) {
-    const existingPaths = new Set(config.songs.map(s => s.meta.filePath))
-    const newSongs = allSongs.filter(s => !existingPaths.has(s.meta.filePath))
-    config.songs = [...config.songs, ...newSongs]
+    config.songs = allSongs
     config.scannedAt = Date.now()
     sortSongs(config)
     await saveConfig(config)
