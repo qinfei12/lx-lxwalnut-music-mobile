@@ -310,6 +310,14 @@ export default memo(() => {
     global.app_event.changeMenuVisible(false);
     setNavActiveId('nav_play_history');
   };
+  const handleLyricPress = () => {
+    global.app_event.changeMenuVisible(false);
+    navigations.pushLyricDesktopScreen(commonState.componentIds[commonState.componentIds.length - 1]?.id!);
+  };
+  const handleEqualizerPress = () => {
+    global.app_event.changeMenuVisible(false);
+    navigations.pushEqualizerScreen(commonState.componentIds[commonState.componentIds.length - 1]?.id!);
+  };
   const filteredNavMenus = useMemo(() => {
     if (!navOrder) return NAV_MENUS.filter(
       menu => menu.id !== 'nav_play_history' && (menu.id === 'nav_setting' || (navStatus[menu.id] ?? true))
@@ -343,6 +351,12 @@ export default memo(() => {
         </TouchableOpacity>
         <TouchableOpacity style={styles.footerBtn} onPress={handleDownloadPress}>
           <Icon name="download-2" size={22} color={theme['c-font-label']} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerBtn} onPress={handleLyricPress}>
+          <Icon name="music" size={22} color={theme['c-font-label']} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.footerBtn} onPress={handleEqualizerPress}>
+          <Icon name="bar-chart-2" size={22} color={theme['c-font-label']} />
         </TouchableOpacity>
       </View>
 
