@@ -18,6 +18,7 @@ import com.lxwalnut.music.mobile.userApi.UserApiPackage;
 import com.lxwalnut.music.mobile.utils.UtilsPackage;
 import com.lxwalnut.music.mobile.widget.WidgetPackage;
 import com.lxwalnut.music.mobile.visualizer.ProxyPackage;
+import com.lxwalnut.music.mobile.mediastore.MediaStorePackage;
 
 public class MainApplication extends NavigationApplication {
 
@@ -42,6 +43,7 @@ public class MainApplication extends NavigationApplication {
           packages.add(new WidgetPackage());
           packages.add(new MusicRecognitionPackage());
           packages.add(new ProxyPackage());
+          packages.add(new MediaStorePackage());
           return packages;
         }
 

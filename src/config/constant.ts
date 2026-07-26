@@ -116,6 +116,7 @@ export const NAV_MENUS = [
   { id: 'nav_subscribed_albums', icon: 'svg:album-disc' },
   { id: 'nav_webdav', icon: 'svg:onedrive' },
   { id: 'nav_onedrive', icon: 'svg:onedrive' },
+  { id: 'nav_local', icon: 'svg:folder' },
   { id: 'nav_play_history', icon: 'music_time' },
   { id: 'nav_setting', icon: 'setting' },
 ] as const

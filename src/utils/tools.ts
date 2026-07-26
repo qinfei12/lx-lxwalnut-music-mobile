@@ -83,8 +83,11 @@ export const TEMP_FILE_PATH = temporaryDirectoryPath + '/tempFile'
 export const checkStoragePermissions = async () => {
   const writeGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE)
   const readGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE)
-  console.log('checkStoragePermissions', { writeGranted, readGranted })
-  return writeGranted && readGranted
+  const mediaAudioGranted = Platform.Version >= 33 && PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO
+    ? await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO)
+    : true
+  console.log('checkStoragePermissions', { writeGranted, readGranted, mediaAudioGranted })
+  return writeGranted && readGranted && mediaAudioGranted
 }
 
 export const requestStoragePermission = async () => {
@@ -96,6 +99,9 @@ export const requestStoragePermission = async () => {
       [
         PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
         PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        ...(Platform.Version >= 33 && PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO
+          ? [PermissionsAndroid.PERMISSIONS.READ_MEDIA_AUDIO]
+          : []),
       ]
       // {
       //   title: '存储读写权限申请',

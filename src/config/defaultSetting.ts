@@ -42,6 +42,7 @@ const defaultSetting: LX.AppSetting = {
     nav_onedrive: true,
     nav_webdav: true,
     nav_tx_daily_rec: true,
+    nav_local: true,
   },
 
   'common.navOrder': [
@@ -59,6 +60,7 @@ const defaultSetting: LX.AppSetting = {
     'nav_top',
     'nav_webdav',
     'nav_onedrive',
+    'nav_local',
     'nav_setting',
   ],
 
